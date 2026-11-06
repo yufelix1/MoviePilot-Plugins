@@ -19,9 +19,10 @@ DEFAULTS = {
 
 
 def time_window(now: Optional[datetime] = None) -> tuple[datetime, datetime]:
-    """Return the last completed local half-hour, independent of scheduler delay."""
+    """返回截至最近一次 :25/:55 调度点的半小时窗口 [start, end)。"""
     now = now if now is not None else datetime.now()
-    end = now.replace(minute=(now.minute // 30) * 30, second=0, microsecond=0)
+    elapsed_minutes = (now.minute - 25) % 30
+    end = now.replace(second=0, microsecond=0) - timedelta(minutes=elapsed_minutes)
     return end - timedelta(minutes=30), end
 
 

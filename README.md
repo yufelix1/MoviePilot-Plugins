@@ -16,4 +16,4 @@ https://github.com/yufelix1/MoviePilot-Plugins
 
 插件 ID：`CMS115Organizer`，源码位于 [`plugins.v2/cms115organizer`](./plugins.v2/cms115organizer)。
 
-每半小时读取 CMS 数据库中的上一段半小时事件，将待整理目录中的文件或目录交给 MoviePilot 整理。媒体识别、目标目录、整理方式、重命名及元数据刮削均复用 MoviePilot 的配置。
+每小时 25、55 分读取 CMS 数据库中的上一段半小时事件，将待整理目录中的文件或目录交给 MoviePilot 整理。媒体识别、目标目录、整理方式、重命名及元数据刮削均复用 MoviePilot 的配置。
