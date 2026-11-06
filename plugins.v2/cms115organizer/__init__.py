@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from threading import Event
+from time import monotonic
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -18,13 +19,17 @@ from .service import OrganizerService
 from .ui import build_form
 
 
+# 任务超时时间20 分钟。
+RUN_TIMEOUT_SECONDS = 20 * 60
+
+
 class CMS115Organizer(_PluginBase):
     """Register host lifecycle, public service and the Vuetify configuration form."""
 
     plugin_name = "CMS115自动整理"
     plugin_desc = "基于 CMS 同步事件，自动识别并整理 115 网盘。"
     plugin_icon = "https://raw.githubusercontent.com/jxxghp/MoviePilot-Frontend/refs/heads/v2/src/assets/images/misc/u115.png"
-    plugin_version = "1.0.1"
+    plugin_version = "1.0.2"
     plugin_author = "yufelix"
     author_url = "https://github.com/yufelix1"
     plugin_config_prefix = "cms115organizer_"
@@ -76,16 +81,29 @@ class CMS115Organizer(_PluginBase):
         }]
 
     def run_once(self):
-        """Run one window in the host timezone, without saving runtime data."""
+        """按宿主时区处理一个窗口，任务超时时间20 分钟，不保存运行数据。"""
         # Keep this execution bound to its configuration and cancellation event.
         options, stopped = self._options, self._stopped
         if not self._config["enabled"] or options is None or stopped.is_set():
             return
+        deadline = monotonic() + RUN_TIMEOUT_SECONDS
+        timed_out = False
+
+        def should_stop() -> bool:
+            nonlocal timed_out
+            if timed_out or stopped.is_set():
+                return True
+            if monotonic() >= deadline:
+                timed_out = True
+                logger.warning("任务超时时间20 分钟，已超时，停止后续整理；正在执行的请求需等待宿主返回，不保存或重试")
+                return True
+            return False
+
         try:
             now = datetime.now(ZoneInfo(settings.TZ)).replace(tzinfo=None)
             start, end = time_window(now)
             logger.info(f"开始自动整理任务，处理窗口 [{start}, {end})")
-            report = OrganizerService(options, stopped.is_set).run(
+            report = OrganizerService(options, should_stop).run(
                 now=now, on_record=self._log_record,
             )
             counts = report["counts"]

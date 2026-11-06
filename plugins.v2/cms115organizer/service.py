@@ -40,7 +40,7 @@ class OrganizerService:
     def _transfer(self, candidate: Candidate) -> tuple[bool, str]:
         """Pass the matching FileItem to MoviePilot; directories use host recursion."""
         if self.stopped():
-            return False, "插件已停止，本次丢弃"
+            return False, "任务已停止或超时，本次丢弃"
         if self._items is None and not self._lookup_error:
             try:
                 self._items = source_items(self.options)
@@ -49,7 +49,7 @@ class OrganizerService:
         if self._lookup_error:
             return False, self._lookup_error
         if self.stopped():
-            return False, "插件已停止，本次丢弃"
+            return False, "任务已停止或超时，本次丢弃"
         fileitem = self._items.get(candidate.file_id)
         if not fileitem:
             return False, "待整理目录内未找到对应文件或目录，本次丢弃"
@@ -64,5 +64,5 @@ class OrganizerService:
             continue_callback=lambda: not self.stopped(),
         )
         if self.stopped():
-            return False, "插件停止时整理可能尚未完成，不保存或重试"
+            return False, "任务停止或超时时整理可能尚未完成，不保存或重试"
         return bool(success), str(message or "")
