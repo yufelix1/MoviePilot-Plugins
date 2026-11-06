@@ -21,6 +21,7 @@ from .ui import build_form
 
 # 任务超时时间20 分钟。
 RUN_TIMEOUT_SECONDS = 20 * 60
+corn = "25,55 8-23 * * *"
 
 
 class CMS115Organizer(_PluginBase):
@@ -29,7 +30,7 @@ class CMS115Organizer(_PluginBase):
     plugin_name = "CMS115自动整理"
     plugin_desc = "基于 CMS 同步事件，自动识别并整理 115 网盘。"
     plugin_icon = "https://raw.githubusercontent.com/jxxghp/MoviePilot-Frontend/refs/heads/v2/src/assets/images/misc/u115.png"
-    plugin_version = "1.0.3"
+    plugin_version = "1.0.4"
     plugin_author = "yufelix"
     author_url = "https://github.com/yufelix1"
     plugin_config_prefix = "cms115organizer_"
@@ -69,13 +70,13 @@ class CMS115Organizer(_PluginBase):
         return []
 
     def get_service(self) -> list[dict[str, Any]]:
-        """Let the host schedule a clone-specific service at :25 and :55."""
+        """Let the host schedule a clone-specific service using the internal cron expression."""
         if not self.get_state():
             return []
         return [{
             "id": f"{self.__class__.__name__}.Organize",
             "name": self.plugin_name,
-            "trigger": CronTrigger.from_crontab("25,55 * * * *", timezone=settings.TZ),
+            "trigger": CronTrigger.from_crontab(corn, timezone=settings.TZ),
             "func": self.run_once,
             "kwargs": {},
         }]
