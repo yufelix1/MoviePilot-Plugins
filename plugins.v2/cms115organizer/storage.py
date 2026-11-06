@@ -59,5 +59,6 @@ def source_items(options: Options) -> dict[str, FileItem]:
                 continue
             result[str(item.fileid)] = item
         except (AttributeError, TypeError, ValueError) as error:
-            logger.warning(f"CMS115 整理：跳过异常网盘子项 {getattr(item, 'fileid', '')}：{error}")
+            name = getattr(item, "name", None) or getattr(item, "path", None) or "未提供名称"
+            logger.warning(f"跳过异常网盘子项 {name!r}（ID={getattr(item, 'fileid', '')}）：{error}")
     return result

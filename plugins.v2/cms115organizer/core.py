@@ -97,23 +97,20 @@ class Organizer:
         self.database, self.options = database, options
         self.transfer, self.stopped = transfer, stopped
 
-    def _handle(self, event: dict, seen: set[str]) -> tuple[str, str, str]:
-        item = json.loads(event["item_json"])
-        if not isinstance(item, dict):
-            raise ValueError("item_json 必须是单个文件或目录的 JSON 对象")
+    def _handle(self, item: dict, seen: set[str]) -> tuple[str, str]:
         if str(item.get("parent_id", "")) != self.options.source_directory_id:
-            return "skipped", "父目录 ID 未匹配待整理目录（仅匹配直接子项）", ""
+            return "skipped", "父目录 ID 未匹配待整理目录（仅匹配直接子项）"
         key = str(item.get("file_id") or "")
         if key in seen:
-            return "skipped", "本轮已处理该对象，不重复提交或重试", ""
+            return "skipped", "本轮已处理该文件或目录，不重复提交或重试"
         seen.add(key)
         file_id = str(item.get("file_id") or "")
         if not file_id.isdigit() or file_id == "0":
             raise ValueError("事件缺少有效的 file_id")
         candidate = Candidate(file_id, self.options.source_directory_id)
         success, message = self.transfer(candidate)
-        return ("success", "整理完成", candidate.file_id) if success else (
-            "failed", str(message or "MoviePilot 整理失败，本次丢弃"), candidate.file_id,
+        return ("success", "整理完成") if success else (
+            "failed", str(message or "MoviePilot 整理失败，本次丢弃"),
         )
 
     def poll(self, now: Optional[datetime] = None,
@@ -125,12 +122,21 @@ class Organizer:
         for event in self.database.events_in_window(start, end):
             if self.stopped():
                 break
+            file_id, file_name = "", ""
             try:
-                status, message, file_id = self._handle(event, seen)
+                item = json.loads(event["item_json"])
+                if not isinstance(item, dict):
+                    raise ValueError("item_json 必须是单个文件或目录的 JSON 对象")
+                # Keep identity even for skipped events and transfer exceptions.
+                file_id = str(item.get("file_id") or "")
+                if isinstance(item.get("file_name"), str):
+                    file_name = item["file_name"]
+                status, message = self._handle(item, seen)
             except Exception as error:
-                status, message, file_id = "failed", f"本次丢弃：{error}", ""
+                status, message = "failed", f"本次丢弃：{error}"
             counts[status] += 1
             if on_record:
                 on_record({"id": event["id"], "event": event["behavior_type"],
-                           "status": status, "file_id": file_id, "message": message})
+                           "status": status, "file_id": file_id, "file_name": file_name,
+                           "message": message})
         return {"start": str(start), "end": str(end), "counts": counts}

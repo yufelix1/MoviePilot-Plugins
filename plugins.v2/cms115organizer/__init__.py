@@ -13,18 +13,18 @@ from app.core.config import settings
 from app.log import logger
 from app.plugins import _PluginBase
 
-from .core import DEFAULTS, Options
+from .core import DEFAULTS, Options, time_window
 from .service import OrganizerService
-from .ui import build_form, build_page
+from .ui import build_form
 
 
 class CMS115Organizer(_PluginBase):
-    """Register host lifecycle, public service and default Vuetify pages."""
+    """Register host lifecycle, public service and the Vuetify configuration form."""
 
     plugin_name = "CMS115自动整理"
     plugin_desc = "基于 CMS 同步事件，自动识别并整理 115 网盘。"
     plugin_icon = "https://raw.githubusercontent.com/jxxghp/MoviePilot-Frontend/refs/heads/v2/src/assets/images/misc/u115.png"
-    plugin_version = "1.0.0"
+    plugin_version = "1.0.1"
     plugin_author = "yufelix"
     author_url = "https://github.com/yufelix1"
     plugin_config_prefix = "cms115organizer_"
@@ -36,19 +36,17 @@ class CMS115Organizer(_PluginBase):
         self._stopped = Event()
         self._config = dict(DEFAULTS)
         self._options = None
-        self._error = ""
 
     def init_plugin(self, config: dict = None):
         """Cancel the old execution before applying the host-provided configuration."""
         self.stop_service()
         self._config = {key: (config or {}).get(key, value) for key, value in DEFAULTS.items()}
-        self._options, self._error = None, ""
+        self._options = None
         if self._config["enabled"]:
             try:
                 self._options = Options.from_config(self._config)
             except (ValueError, TypeError, OSError) as error:
-                self._error = str(error)
-                logger.error(f"【{self.plugin_name}】配置无效：{error}")
+                logger.error(f"配置无效：{error}")
         # Old callbacks must retain their cancelled event after reinitialization.
         self._stopped = Event()
 
@@ -85,16 +83,24 @@ class CMS115Organizer(_PluginBase):
             return
         try:
             now = datetime.now(ZoneInfo(settings.TZ)).replace(tzinfo=None)
+            start, end = time_window(now)
+            logger.info(f"开始自动整理任务，处理窗口 [{start}, {end})")
             report = OrganizerService(options, stopped.is_set).run(
                 now=now, on_record=self._log_record,
             )
-            logger.info(f"【{self.plugin_name}】窗口 [{report['start']}, {report['end']})：{report['counts']}")
+            counts = report["counts"]
+            logger.info(
+                f"窗口 [{report['start']}, {report['end']}) 事件处理："
+                f"成功 {counts['success']} 条，失败 {counts['failed']} 条，跳过 {counts['skipped']} 条"
+            )
         except Exception as error:
-            logger.error(f"【{self.plugin_name}】本轮失败，不保存或重试：{error}")
+            logger.error(f"本轮失败，不保存或重试：{error}")
 
     def _log_record(self, row: dict):
-        """Use the runtime display name so clone logs can be distinguished."""
-        message = f"【{self.plugin_name}】事件 {row['id']} [{row['status']}] 对象 {row['file_id']}：{row['message']}"
+        """Log readable names; the host logger already identifies the plugin."""
+        status = {"success": "成功", "failed": "失败", "skipped": "跳过"}[row["status"]]
+        file_name = row.get("file_name") or (f"未提供名称，ID={row['file_id']}" if row["file_id"] else "未提供名称")
+        message = f"[{status}] {file_name}：{row['message']}（事件 {row['id']}）"
         if row["status"] == "failed":
             logger.warning(message)
         else:
@@ -104,9 +110,9 @@ class CMS115Organizer(_PluginBase):
         """Return the standard Vuetify configuration page and default model."""
         return build_form()
 
-    def get_page(self) -> list[dict]:
-        """Render static help and configuration errors without accessing plugin data."""
-        return build_page(self._error)
+    def get_page(self) -> None:
+        """Keep empty so the host does not advertise a plugin data page."""
+        pass
 
     def stop_service(self):
         """Signal active work to stop; the host owns the public-service scheduler."""

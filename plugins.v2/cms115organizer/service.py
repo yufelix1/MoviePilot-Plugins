@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import PurePosixPath
 from typing import Callable, Optional
 
 from app.chain.transfer import TransferChain
@@ -19,14 +20,21 @@ class OrganizerService:
         self.options = options
         self.stopped = stopped
         self._items: Optional[dict[str, FileItem]] = None
+        self._file_names: dict[str, str] = {}
         self._lookup_error = ""
 
     def run(self, now: datetime, on_record: Callable[[dict], None]) -> dict:
         """Consume the supplied window using host directory and transfer settings."""
         self._items, self._lookup_error = None, ""
+        self._file_names = {}
+
+        def log_record(row: dict):
+            row["file_name"] = self._file_names.get(row["file_id"]) or row["file_name"]
+            on_record(row)
+
         with CmsDatabase(self.options.db_path) as database:
             return Organizer(database, self.options, self._transfer, self.stopped).poll(
-                now=now, on_record=on_record,
+                now=now, on_record=log_record,
             )
 
     def _transfer(self, candidate: Candidate) -> tuple[bool, str]:
@@ -44,7 +52,11 @@ class OrganizerService:
             return False, "插件已停止，本次丢弃"
         fileitem = self._items.get(candidate.file_id)
         if not fileitem:
-            return False, "待整理目录内未找到事件对象，本次丢弃"
+            return False, "待整理目录内未找到对应文件或目录，本次丢弃"
+        # Capture the original live name before the host moves or renames the item.
+        self._file_names[candidate.file_id] = (
+            getattr(fileitem, "name", None) or PurePosixPath(fileitem.path).name
+        )
         success, message = TransferChain().do_transfer(
             fileitem=fileitem,
             background=False,

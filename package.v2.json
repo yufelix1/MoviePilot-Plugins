@@ -3,13 +3,14 @@
     "name": "CMS115自动整理",
     "description": "基于 CMS 同步事件，自动识别并整理 115 网盘。",
     "labels": "115,网盘整理,CMS",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "icon": "https://raw.githubusercontent.com/jxxghp/MoviePilot-Frontend/refs/heads/v2/src/assets/images/misc/u115.png",
     "author": "yufelix",
     "level": 1,
     "system_version": ">=2.12.0,<3",
     "release": true,
     "history": {
+      "v1.0.1": "优化插件",
       "v1.0.0": "首次发布"
     }
   }
