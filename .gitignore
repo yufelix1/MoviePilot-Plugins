@@ -161,3 +161,9 @@ cython_debug/
 
 .idea/
 .vscode/
+
+# macOS metadata
+.DS_Store
+
+# Local test
+/tests/*
