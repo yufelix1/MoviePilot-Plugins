@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import stat
 from pathlib import Path, PurePosixPath
 from threading import Event as StopEvent, Lock
 from time import monotonic
@@ -298,14 +299,24 @@ class AutoBangumi115Archive(_PluginBase):
     @staticmethod
     def _scan(root):
         files = {}
-        for path in sorted(root.rglob("*")):
-            if path.is_symlink():
-                raise ArchiveError(f"目录中包含符号链接：{path}")
-            if path.is_file():
-                stat = path.stat()
-                if stat.st_size <= 0 or path.name.endswith((".!qB", ".part", ".tmp")):
-                    raise ArchiveError(f"文件为空或尚未完成：{path}")
-                files[path] = (stat.st_size, stat.st_mtime_ns)
+        pending = [root]
+        while pending:
+            path = pending.pop()
+            try:
+                # rglob 会忽略部分目录读取错误；显式遍历，确保扫描完整才允许清理。
+                info = path.lstat()
+                if stat.S_ISLNK(info.st_mode):
+                    raise ArchiveError(f"目录中包含符号链接：{path}")
+                if stat.S_ISDIR(info.st_mode):
+                    pending.extend(sorted(path.iterdir(), reverse=True))
+                elif stat.S_ISREG(info.st_mode):
+                    if info.st_size <= 0 or path.name.endswith((".!qB", ".part", ".tmp")):
+                        raise ArchiveError(f"文件为空或尚未完成：{path}")
+                    files[path] = (info.st_size, info.st_mtime_ns)
+            except OSError as error:
+                raise ArchiveError(
+                    f"无法完整扫描番剧目录，读取失败：{path}（{type(error).__name__}）"
+                ) from None
         if not files:
             raise ArchiveError("番剧目录为空")
         return files
