@@ -4,7 +4,7 @@
     "description": "通过 /ab 上传番剧至115，归档、禁用RSS并删除种子及文件。",
     "labels": "AutoBangumi,115",
     "version": "1.0.0",
-    "icon": "AutoBangumi.svg",
+    "icon": "https://raw.githubusercontent.com/yufelix1/MoviePilot-Plugins/main/icons/AutoBangumi.png",
     "author": "yufelix",
     "level": 1,
     "system_version": ">=2.12.0,<3",

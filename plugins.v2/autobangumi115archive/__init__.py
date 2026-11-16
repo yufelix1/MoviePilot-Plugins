@@ -48,7 +48,7 @@ def match_bangumi(items: list[dict], keyword: str) -> list[dict]:
 class AutoBangumi115Archive(_PluginBase):
     plugin_name = "AutoBangumi归档115"
     plugin_desc = "通过 /ab 上传番剧至115，归档、禁用RSS并删除种子及文件。"
-    plugin_icon = "AutoBangumi.svg"
+    plugin_icon = "https://raw.githubusercontent.com/yufelix1/MoviePilot-Plugins/main/icons/AutoBangumi.png"
     plugin_version = "1.0.0"
     plugin_author = "yufelix"
     author_url = "https://github.com/yufelix1"
